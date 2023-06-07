@@ -1,5 +1,5 @@
 // Modules to control application life and create native browser window
-const { app, BrowserWindow } = require('electron')
+const { app, BrowserWindow, ipcMain } = require('electron')
 const path = require('path')
 
 function createWindow () {
@@ -10,13 +10,40 @@ function createWindow () {
     webPreferences: {
       preload: path.join(__dirname, 'preload.js')
     }
-  })
+  });
+  
+  mainWindow.webContents.setBackgroundThrottling(false);
+  
+  ipcMain.on('toggle-visibility', (_, show) => {
+    const win = BrowserWindow.fromWebContents(mainWindow.webContents);
+    if (show) {
+      win.show();
+    } else {
+      win.hide();
+    }
+  });
+
+  ipcMain.on('set-background', (_, color) => {
+    mainWindow.webContents.executeJavaScript(`document.body.style.background = '${color}'`);
+  });
 
   // and load the index.html of the app.
   mainWindow.loadFile('index.html')
 
   // Open the DevTools.
-  // mainWindow.webContents.openDevTools()
+  mainWindow.webContents.openDevTools()
+}
+
+function createChildWin () {
+  const childWindow = new BrowserWindow({
+    width: 800,
+    height: 600,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js')
+    }
+  });
+
+  childWindow.loadFile('child.html');
 }
 
 // This method will be called when Electron has finished
@@ -24,7 +51,7 @@ function createWindow () {
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
   createWindow()
-
+  createChildWin()
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
